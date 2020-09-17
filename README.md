@@ -32,7 +32,7 @@ All layers are masked to land boundary polygons prior to prioritization. Some or
 1. When using proportional targets in prioritization, the target will be a proportion of terrestrial AOH, not the total AOH.
 2. Of the 29,360 biodiversity features, 1,027 have no AOH falling with the terrestrial boundary and are therefore removed from the analysis.
 
-Raw data are all stored as GeoTIFFs within the `data/tifs/` directory in subdirectories according to data type, either `es` for ecosystem services or class level directory for biodiversity features.
+Raw data are all stored as GeoTIFFs within the `data/tifs/` directory in subdirectories according to data type, either `es/` for ecosystem services or class level directory for biodiversity features: `mammals/`, `birds/`, `reptiles/`, and `amphibians/`.
 
 ## Workflow
 
