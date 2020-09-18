@@ -46,7 +46,7 @@ features <- rowSums(rij) %>%
 # set biodiversity targets
 features <- features %>% 
   # aoh = area of planning unit times total representation / 100
-  mutate(aoh = ifelse(type != "es", total * resolution^2 / 100, NA_real_)) %>% 
+  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>% 
   # set target based on aoh
   mutate(prop = ifelse(type != "es", 0.1 * aoh, NA_real_),
          prop = ifelse(prop < 1000, ifelse(prop > 100, 1000/aoh, 1), prop / aoh))
