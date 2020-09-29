@@ -44,12 +44,12 @@ features <- rowSums(rij) %>%
   enframe(value = "total") %>% 
   inner_join(features, ., by = "name")
 # set biodiversity targets
+max_total <- resolution^2
 features <- features %>% 
-  # aoh = area of planning unit times total representation / 100
-  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>% 
+  mutate(aoh = ifelse(type != "es", total / max_total, NA_real_)) %>% 
   # set target based on aoh
-  mutate(prop = ifelse(type != "es", 0.1 * aoh, NA_real_),
-         prop = ifelse(prop < 1000, ifelse(prop > 100, 1000/aoh, 1), prop / aoh))
+  mutate(prop = 1.1 - 1e-4 * aoh,
+         prop = pmin(pmax(prop_msm, 0.1), 1.0))
 
 
 # prioritize ---- 
