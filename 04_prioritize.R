@@ -60,8 +60,9 @@ r <- str_glue("pu_eck4_{resolution}km.tif") %>%
 rij <- str_glue("rij-matrix_{resolution}km.rds") %>% 
   file.path(DATA_DIR, .) %>% 
   read_rds()
+
 # for testing, remove most of the features
-# rij <- rij[1:1000, ]
+ # rij <- rij[1:1000, ]
 
 # total across all planning units
 # for biodiversity features, values are % of cell occupied
@@ -92,6 +93,9 @@ for (i in seq.int(nrow(scenarios))) {
     add_binary_decisions() %>% 
     add_gurobi_solver(gap = 0.01, threads = n_cores)
   # add objective function based on scenario
+  
+  gc()
+  
   budget <- scenarios$budget[i]
   if (budget == 1) {
     p <- add_min_set_objective(p)
@@ -132,6 +136,6 @@ for (i in seq.int(nrow(scenarios))) {
   co <- capture.output(gc())
   removeTmpFiles(h = 0)
 }
-str_glue("scenarios_{resolution}km.tif") %>%
+str_glue("scenarios_{resolution}km.csv") %>%
   file.path(OUTPUT_DIR, .) %>% 
   write_csv(scenarios, .)
