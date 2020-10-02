@@ -35,10 +35,12 @@ calculate_targets <- function(x, minimum_range_size = 1000,
 n_cores <- 10
 resolution <- 10
 # prioritization scenarios
-scenarios <- expand_grid(es = c(0.3, 0.5, 0.9),
+scenarios <- expand_grid(biod = c(0,1),
+                         es = c(0, 0.3, 0.5, 0.9),
                          budget = c(0.3, 0.5, 1)) %>% 
-  mutate(scenario = str_glue("es-{100 * es}_budget-{100 * budget}")) %>% 
-  select(scenario, es, budget)
+  mutate(scenario = str_glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}")) %>% 
+  select(scenario, es, biod, budget) %>%
+  filter(es > 0 | biod > 0, !(biod == 0 & budget < 1))
 
 
 # input data ----
@@ -75,14 +77,14 @@ max_total <- resolution^2
 features <- features %>% 
   mutate(aoh = ifelse(type != "es", total / max_total, NA_real_)) %>% 
   # set target based on aoh
-  mutate(prop = calculate_targets(aoh))
+  mutate(prop0 = calculate_targets(aoh))
 
 
 # prioritize ---- 
 
 for (i in seq.int(nrow(scenarios))) {
   # ecosystem service targets
-  features$prop <- ifelse(features$type == "es", scenarios$es[i], features$prop)
+  features$prop <- ifelse(features$type == "es", scenarios$es[i], features$prop0 * scenarios$biod[i])
   
   # construct problem, use cost = 1
   p <- problem(rep(1, ncol(rij)),
