@@ -82,7 +82,8 @@ features <- features %>%
 
 # prioritize ---- 
 
-for (i in seq.int(nrow(scenarios))) {
+# for (i in 6:nrow(scenarios)) {
+for (i in 1:nrow(scenarios)) {
   # ecosystem service targets
   features$prop <- ifelse(features$type == "es", scenarios$es[i], features$prop0 * scenarios$biod[i])
   
