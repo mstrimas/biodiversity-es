@@ -7,10 +7,11 @@ library(doParallel)
 registerDoParallel(detectCores() - 2)
 
 # resolution in km
-resolution <- 10
+resolution <- 5
 
 # feature list
-f <- file.path(DATA_DIR, "features_10km.csv") %>% 
+f <- str_glue("features_{resolution}km.csv") %>% 
+  file.path(DATA_DIR, .) %>% 
   read_csv()
 
 # stack layer-specific rij data frames into sparse matrices
@@ -34,6 +35,3 @@ rij <- sparseMatrix(i = rij$species, j = rij$pu, x = rij$amount,
 str_glue("rij-matrix_{resolution}km.rds") %>% 
   file.path(DATA_DIR, .) %>% 
   write_rds(rij, ., compress = "gz")
-rm(f)
-rm(rij)
-co <- capture.output(gc())

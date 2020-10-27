@@ -8,14 +8,15 @@ library(doParallel)
 registerDoParallel(detectCores() - 2)
 walk(list.files("R", full.names = TRUE), source)
 
+# resolution in km
+resolution <- 5
+
 # directories
-tif_dir <- file.path(DATA_DIR, "tifs")
+tif_dir <- file.path(DATA_DIR, "tifs", paste0(resolution,, ))
 feature_dir <- file.path(DATA_DIR, "features")
 pu_dir <- file.path(DATA_DIR, "pu")
 dir.create(feature_dir, showWarnings = FALSE)
 
-# resolution in km
-resolution <- 10
 # raster template
 pu <- str_glue("pu_eck4_{resolution}km.tif") %>% 
   file.path(pu_dir, .) %>% 
