@@ -1,3 +1,7 @@
+if (file.exists("~/.Rprofile")) {
+  source("~/.Rprofile")
+}
+
 # define user specific data and output directories
 # necessary since these are not under version control
 user <- Sys.info()[["user"]]

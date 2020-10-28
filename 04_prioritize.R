@@ -4,32 +4,7 @@ library(Matrix)
 library(prioritizr)
 library(gurobi)
 library(tidyverse)
-
-# define target function
-calculate_targets <- function(x, minimum_range_size = 1000,
-                              proportion_at_minimum_range_size = 1,
-                              maximum_range_size = 250000,
-                              proportion_at_maximum_range_size = 0.1,
-                              cap_range_size = 10000000,
-                              cap_target_amount = 1000000) {
-  # initialization
-  out <- rep(NA_real_, length(x))
-  pos <- which(is.finite(x))
-  # set targets below threshold
-  out[pos] <- stats::approx(
-    x = log10(c(minimum_range_size, maximum_range_size)),
-    y = c(proportion_at_minimum_range_size,
-          proportion_at_maximum_range_size),
-    xout = log10(x[pos]), method = "linear", rule = 2)$y
-  # set caps
-  cap_pos <- which(x > cap_range_size)
-  if (length(cap_pos) > 0) {
-    out[cap_pos] <- cap_target_amount / x[cap_pos]
-  }
-  # return values
-  return(out)
-}
-
+source("R/calculate-targets.R")
 
 # parameters
 n_cores <- 10
@@ -64,7 +39,7 @@ rij <- str_glue("rij-matrix_{resolution}km.rds") %>%
   read_rds()
 
 # for testing, remove most of the features
- # rij <- rij[1:1000, ]
+# rij <- rij[1:1000, ]
 
 # total across all planning units
 # for biodiversity features, values are % of cell occupied
@@ -85,7 +60,8 @@ features <- features %>%
 # for (i in 6:nrow(scenarios)) {
 for (i in 1:nrow(scenarios)) {
   # ecosystem service targets
-  features$prop <- ifelse(features$type == "es", scenarios$es[i], features$prop0 * scenarios$biod[i])
+  features$prop <- ifelse(features$type == "es", scenarios$es[i], 
+                          features$prop0 * scenarios$biod[i])
   
   # construct problem, use cost = 1
   p <- problem(rep(1, ncol(rij)),
@@ -116,7 +92,7 @@ for (i in 1:nrow(scenarios)) {
   scenarios[["solution"]][i] <- str_glue("solution_{scenarios$scenario[i]}",
                                          "_{resolution}km.rds")
   scenarios[["raster"]][i] <- str_glue("solution_{scenarios$scenario[i]}",
-                                         "_{resolution}km.tif")
+                                       "_{resolution}km.tif")
   
   # solution object
   sol <- pu
