@@ -23,9 +23,10 @@ n_pu <- str_glue("pu_{resolution}km.rds") %>%
   nrow()
 # load representation tables
 stopifnot(all(file.exists(f$rij)))
-rij <- foreach (i = seq.int(nrow(f)), .combine = rbind) %dopar% {
+rij <- foreach (i = seq.int(nrow(f))) %dopar% {
   mutate(read_rds(f$rij[i]), species = f$id[i])
 }
+rij <- bind_rows(rij)
 
 # convert to sparse matrix
 rij <- sparseMatrix(i = rij$species, j = rij$pu, x = rij$amount,

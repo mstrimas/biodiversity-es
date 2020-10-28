@@ -33,7 +33,7 @@ calculate_targets <- function(x, minimum_range_size = 1000,
 
 # parameters
 n_cores <- 10
-resolution <- 10
+resolution <- 5
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
                          es = c(0, 0.3, 0.5, 0.9),
