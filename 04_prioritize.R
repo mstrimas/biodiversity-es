@@ -7,7 +7,7 @@ library(tidyverse)
 source("R/calculate-targets.R")
 
 # parameters
-n_cores <- 10
+n_cores <- 1
 resolution <- 5
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
@@ -57,8 +57,8 @@ features <- features %>%
 
 # prioritize ---- 
 
-# for (i in 6:nrow(scenarios)) {
-for (i in 1:nrow(scenarios)) {
+for (i in 10:nrow(scenarios)) {
+# for (i in 1:nrow(scenarios)) {
   # ecosystem service targets
   features$prop <- ifelse(features$type == "es", scenarios$es[i], 
                           features$prop0 * scenarios$biod[i])
@@ -111,7 +111,7 @@ for (i in 1:nrow(scenarios)) {
                 overwrite = TRUE)
   
   # clean up
-  rm(s, sol, r_sol)
+  rm(p, s, sol, r_sol)
   co <- capture.output(gc())
   removeTmpFiles(h = 0)
 }
