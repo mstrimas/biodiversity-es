@@ -8,7 +8,7 @@ source("R/calculate-targets.R")
 
 # parameters
 n_cores <- 1
-resolution <- 5
+resolution <- 10
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
                          es = c(0, 0.3, 0.5, 0.9),
@@ -50,7 +50,7 @@ features <- rowSums(rij) %>%
 # set biodiversity targets
 max_total <- resolution^2
 features <- features %>% 
-  mutate(aoh = ifelse(type != "es", total / max_total, NA_real_)) %>% 
+  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>% 
   # set target based on aoh
   mutate(prop0 = calculate_targets(aoh))
 
