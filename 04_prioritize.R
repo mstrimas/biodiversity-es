@@ -6,9 +6,12 @@ library(gurobi)
 library(tidyverse)
 source("R/calculate-targets.R")
 
+# set all values below this to 0
+clamp_value <- 1
+
 # parameters
-n_cores <- 1
-resolution <- 5
+n_cores <- 42
+resolution <- 10
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
                          es = c(0, 0.3, 0.5, 0.9),
@@ -38,6 +41,14 @@ rij <- str_glue("rij-matrix_{resolution}km.rds") %>%
   file.path(DATA_DIR, .) %>% 
   read_rds()
 
+#clamp NCP layers
+#only clamp values for layers that have a huge range.
+rij_sub <- rij[1:10, ]
+for(ii in 1:nrow(rij_sub)){
+  rij_sub[ii, ] <- ifelse(rij_sub[ii,] < clamp_value, 0, rij_sub[ii,])
+}
+rij[1:10, ] <- rij_sub
+
 # for testing, remove most of the features
 # rij <- rij[1:1000, ]
 
@@ -50,15 +61,15 @@ features <- rowSums(rij) %>%
 # set biodiversity targets
 max_total <- resolution^2
 features <- features %>% 
-  mutate(aoh = ifelse(type != "es", total / max_total, NA_real_)) %>% 
+  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>% 
   # set target based on aoh
   mutate(prop0 = calculate_targets(aoh))
 
 
 # prioritize ---- 
 
-for (i in 10:nrow(scenarios)) {
-# for (i in 1:nrow(scenarios)) {
+# for (i in 10:nrow(scenarios)) {
+for (i in 1:nrow(scenarios)) {
   # ecosystem service targets
   features$prop <- ifelse(features$type == "es", scenarios$es[i], 
                           features$prop0 * scenarios$biod[i])
@@ -70,7 +81,7 @@ for (i in 10:nrow(scenarios)) {
                run_checks = FALSE) %>%
     add_relative_targets("prop") %>%
     add_binary_decisions() %>% 
-    add_gurobi_solver(gap = 0.01, threads = n_cores)
+    add_gurobi_solver(gap = 0.05, threads = n_cores)
   # add objective function based on scenario
   
   gc()
