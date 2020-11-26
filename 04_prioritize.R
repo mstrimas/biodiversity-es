@@ -10,7 +10,7 @@ source("R/calculate-targets.R")
 clamp_value <- 1
 
 # parameters
-n_cores <- 42
+n_cores <- 40
 resolution <- 10
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
@@ -76,10 +76,11 @@ for (i in 1:nrow(scenarios)) {
   features$prop <- ifelse(features$type == "es", scenarios$es[i], 
                           features$prop0 * scenarios$biod[i])
   
+  parts <- c(1:nrow(features))
   # construct problem, use cost = 1
   p <- problem(rep(1, ncol(rij)),
-               features, 
-               rij_matrix = rij,
+               features[parts,], 
+               rij_matrix = rij[parts,],
                run_checks = FALSE) %>%
     add_relative_targets("prop") %>%
     add_binary_decisions() %>% 
