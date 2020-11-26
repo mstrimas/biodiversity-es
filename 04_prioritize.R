@@ -45,7 +45,14 @@ rij <- str_glue("rij-matrix_{resolution}km.rds") %>%
 #only clamp values for layers that have a huge range.
 rij_sub <- rij[1:10, ]
 for(ii in 1:nrow(rij_sub)){
-  rij_sub[ii, ] <- ifelse(rij_sub[ii,] < clamp_value, 0, rij_sub[ii,])
+  if(max(rij_sub[ii,]) > 1000000) {
+    rij_sub[ii, ] <- ifelse(rij_sub[ii,] < clamp_value, 0, rij_sub[ii,])
+    # rij_sub[ii, ] <- rij_sub[ii, ] / 1000 
+    # rij_sub[ii, ] <- sqrt(rij_sub[ii, ]) #sqrt test
+    # rij_sub[ii, ] <- round(rij_sub[ii, ], 0)
+  } else {
+    # rij_sub[ii, ] <- round(rij_sub[ii, ] * 10000, 0)
+  }
 }
 rij[1:10, ] <- rij_sub
 
