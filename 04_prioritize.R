@@ -5,6 +5,7 @@ library(prioritizr)
 library(gurobi)
 library(tidyverse)
 source("R/calculate-targets.R")
+source("R/multi-objective-prioritization.R")
 
 # set all values below this to 0
 clamp_value <- 1
@@ -76,6 +77,7 @@ for (i in 1:nrow(scenarios)) {
   features$prop <- ifelse(features$type == "es", scenarios$es[i], 
                           features$prop0 * scenarios$biod[i])
   
+  # parts <- c(1:10, 11:nrow(features))
   parts <- c(1:nrow(features))
   # construct problem, use cost = 1
   p <- problem(rep(1, ncol(rij)),
@@ -83,7 +85,8 @@ for (i in 1:nrow(scenarios)) {
                rij_matrix = rij[parts,],
                run_checks = FALSE) %>%
     add_relative_targets("prop") %>%
-    add_binary_decisions() %>% 
+    # add_binary_decisions() %>% 
+    add_proportion_decisions() %>% #FOR TESTING ONLY
     add_gurobi_solver(gap = 0.05, threads = n_cores)
   # add objective function based on scenario
   
