@@ -12,8 +12,8 @@ walk(list.files("R", full.names = TRUE), source)
 resolution <- 5
 
 # directories
-tif_dir <- file.path(DATA_DIR, "tifs", paste0(resolution, "km"))
-feature_dir <- file.path(DATA_DIR, "features")
+tif_dir <- file.path(DATA_DIR, "tifs")
+feature_dir <- file.path(DATA_DIR, "features", paste0(resolution, "km"))
 pu_dir <- file.path(DATA_DIR, "pu")
 dir.create(feature_dir, showWarnings = FALSE)
 
