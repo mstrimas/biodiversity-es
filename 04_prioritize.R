@@ -11,7 +11,7 @@ source("R/multi-objective-prioritization.R")
 clamp_value <- 1
 
 # parameters
-n_cores <- 40
+n_cores <- 10
 resolution <- 10
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0,1),
@@ -25,6 +25,7 @@ scenarios <- expand_grid(biod = c(0,1),
 # input data ----
 
 # features
+#TODO adjust features csv to incorporate new carbon layer
 features <- str_glue("features_{resolution}km.csv") %>% 
   file.path(DATA_DIR, .) %>% 
   read_csv()
@@ -71,6 +72,7 @@ features <- features %>%
 
 # prioritize ---- 
 
+
 # for (i in 10:nrow(scenarios)) {
 for (i in 1:nrow(scenarios)) {
   # ecosystem service targets
@@ -113,17 +115,17 @@ for (i in 1:nrow(scenarios)) {
   
   # solution object
   sol <- pu
-  sol$selected <- as.logical(s)
+  sol$selected <- as.numeric(s)
   scenarios[["solution"]][i] %>% 
     file.path(OUTPUT_DIR, .) %>% 
-    write_rds(sol, ., compress = "gz")
+    write_rds(s, ., compress = "gz")
   # raster
   r_sol <- r
-  r_sol[sol$cell_id] <- as.integer(sol$selected)
+  r_sol[sol$cell_id] <- as.numeric(sol$selected)
   r_sol <- scenarios[["raster"]][i] %>%
     file.path(OUTPUT_DIR, .) %>% 
     writeRaster(r_sol, ., 
-                datatype = "INT1U",
+                # datatype = "FLT4S",
                 options = c("COMPRESS=LZW", "TILED=YES"),
                 overwrite = TRUE)
   
