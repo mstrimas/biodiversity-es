@@ -7,7 +7,7 @@ library(doParallel)
 registerDoParallel(detectCores() - 2)
 
 # resolution in km
-resolution <- 5
+resolution <- 10
 
 # feature list
 f <- str_glue("features_{resolution}km.csv") %>% 
