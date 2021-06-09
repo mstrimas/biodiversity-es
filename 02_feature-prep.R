@@ -3,36 +3,35 @@
 library(raster)
 library(sf)
 library(tidyverse)
+library(fs)
 library(foreach)
 library(doParallel)
 registerDoParallel(detectCores() - 2)
-walk(list.files("R", full.names = TRUE), source)
+source("R/get-raster-values.R")
 
 # resolution in km
-resolution <- 5
+res <- 10
 
 # directories
 tif_dir <- file.path(DATA_DIR, "tifs")
-feature_dir <- file.path(DATA_DIR, "features", paste0(resolution, "km"))
+feature_dir <- file.path(DATA_DIR, "features", paste0(res, "km"))
 pu_dir <- file.path(DATA_DIR, "pu")
 dir.create(feature_dir, showWarnings = FALSE)
 
 # raster template
-pu <- str_glue("pu_eck4_{resolution}km.tif") %>% 
+pu <- str_glue("pu_eck4_{res}km.tif") %>% 
   file.path(pu_dir, .) %>% 
   raster()
 # planning unit raster cell numbers
-pu_lookup <- str_glue("pu_{resolution}km.rds") %>% 
+pu_lookup <- str_glue("pu_{res}km.rds") %>% 
   file.path(pu_dir, .) %>% 
   read_rds()
 
 # define features
-f <- list.files(tif_dir, 
-                str_glue("_{resolution}km.*tif$"), 
-                recursive = TRUE, 
-                full.names = TRUE) %>% 
+f <- dir_ls(tif_dir, type = "file", glob = str_glue("*_{res}km.tif"), 
+            recurse = TRUE) %>% 
   tibble(tif = .) %>% 
-  mutate(res_km = resolution,
+  mutate(res_km = res,
          type = basename(dirname(tif)),
          layer = basename(tif) %>% 
            str_remove("_[0-9]+km_.*tif$") %>% 
@@ -46,7 +45,7 @@ f <- list.files(tif_dir,
 stopifnot(anyDuplicated(f$rij) == 0)
 
 # for testing, just run 10 of each type
-# f <- ungroup(slice_sample(group_by(f, type), n = 10))
+#f <- ungroup(slice_sample(group_by(f, type), n = 10))
 
 # build representation matrices for each feature
 f$has_values <- foreach (i = seq.int(nrow(f)), .combine = c) %dopar% {
@@ -80,14 +79,14 @@ if (any(is.na(f$has_values))) {
        paste(f$tif[is.na(f$has_values)], collapse = "\n"))
 }
 # features with zero representation in planning units
-if (any(is.na(f$has_values))) {
+if (any(!f$has_values)) {
   message("These features are not represented in any planning units:\n\t",
           paste(f$tif[!f$has_values], collapse = "\n\t"))
 }
 f %>% 
   filter(!has_values) %>% 
   write_csv(file.path(DATA_DIR, 
-                      str_glue("no-representation_{resolution}km.csv")))
+                      str_glue("no-representation_{res}km.csv")))
 
 # assign features ids accounting for layers that have no values associated
 f <- f %>% 
@@ -97,6 +96,6 @@ f <- f %>%
   mutate(id = row_number(),
          name = paste(type, layer, sep = "_")) %>% 
   select(id, name, type, layer, res_km, tif, rij)
-str_glue("features_{resolution}km.csv") %>% 
+str_glue("features_{res}km.csv") %>% 
   file.path(DATA_DIR, .) %>% 
   write_csv(f, .)

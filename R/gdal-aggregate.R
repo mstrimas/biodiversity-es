@@ -25,7 +25,7 @@ gdal_aggregate <- function(x, f_out, fact, e, overwrite = FALSE) {
   
   # default to a temp file
   if (missing(f_out)) {
-    f_out <- paste0(raster::rasterTmpFile(), ".tif")
+    f_out <- paste0(stringr::str_remove(raster::rasterTmpFile(), "grd$"), "tif")
   }
   stopifnot(is.character(f_out), length(f_out) == 1)
   if (isTRUE(overwrite)) {
@@ -46,7 +46,7 @@ gdal_aggregate <- function(x, f_out, fact, e, overwrite = FALSE) {
   
   # build command
   cmd <- stringr::str_glue("gdalwarp {tr} -r average {ext_arg} ",
-                           "-co 'COMPRESS=LZW' {x} {f_out}")
+                           "-co 'COMPRESS=LZW' -ot Float32 {x} {f_out}")
   system(cmd, ignore.stdout = TRUE)
   r <- raster::brick(f_out)
   if (raster::nlayers(r) == 1) {
