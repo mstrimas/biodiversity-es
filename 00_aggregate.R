@@ -9,7 +9,7 @@ source("R/gdal-aggregate.R")
 # set all values below this to 0
 clamp_value <- 0.0001
 
-# template at 2 km
+# template at 10 km
 r_template <- dir("data/tifs/birds/", "10km.tif$", full.names = TRUE) %>% 
   pluck(1) %>% 
   raster() %>% 
@@ -27,6 +27,7 @@ assets <- foreach (f = f_raw, .combine = c) %dopar% {
     str_replace_all("_", "-") %>% 
     paste0("_eck4_10km.tif") %>% 
     file.path(processed_dir, .)
+  
   r <- gdal_aggregate(f, fact = 5, e = extent(r_template)) %>% 
     reclassify(rcl = c(-Inf, clamp_value, NA_real_),
                filename = f_out, overwrite = TRUE, 

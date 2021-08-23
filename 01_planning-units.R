@@ -56,7 +56,7 @@ r_counts <- raster(f_total)
 cellStats(r_counts, range)
 
 # create mask/template based on cells that have data
-# only consider cells with 10 km of land, exclude antarctica
+# only consider cells within 10 km of land, exclude antarctica
 # land mask
 f_lm <- str_glue("land-mask_eck4_{res}km.tif") %>% 
   file.path(pu_dir, .)
