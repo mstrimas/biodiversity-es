@@ -6,7 +6,7 @@ library(tidyverse)
 library(foreach)
 library(doParallel)
 registerDoParallel(detectCores() - 2)
-walk(list.files("R", full.names = TRUE), source)
+source("R/get-raster-values.R")
 
 # resolution in km
 resolution <- 10
@@ -41,6 +41,7 @@ f <- list.files(tif_dir,
            str_replace_all("(_|\\s)+", "-"),
          rij = str_glue("rij_{res_km}km_{layer}.rds") %>% 
            file.path(feature_dir, .)) %>% 
+  filter(type != "tifs") %>% 
   select(type, layer, res_km, tif, rij)
 # check that there are no duplicate rij file names
 stopifnot(anyDuplicated(f$rij) == 0)

@@ -45,17 +45,18 @@ rij <- str_glue("rij-matrix_{resolution}km.rds") %>%
   read_rds()
 
 #clamp NCP layers
-#only clamp values for layers that have a huge range.
-rij_sub <- rij[1:10, ]
+#only clamp values for layers that have a huge range
+es_features <- features$id[features$type == "es"].
+rij_sub <- rij[es_features, ]
 for(ii in 1:nrow(rij_sub)){
   if(max(rij_sub[ii,]) > 1000000){
     rij_sub[ii, ] <- ifelse(rij_sub[ii,] < clamp_value, 0, rij_sub[ii,])
   }
 }
-rij[1:10, ] <- rij_sub
+rij[es_features, ] <- rij_sub
 
-# for testing, remove most of the features
-rij <- rij[1:10, ]
+# these scenarios only prioritize ecosystem services features
+rij <- rij[es_features, ]
 
 
 # total across all planning units
