@@ -5,7 +5,7 @@ library(sf)
 library(tidyverse)
 library(foreach)
 library(doParallel)
-registerDoParallel(detectCores() - 2)
+registerDoParallel(detectCores() - 6)
 source("R/get-raster-values.R")
 
 # resolution in km

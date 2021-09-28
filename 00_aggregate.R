@@ -4,16 +4,13 @@ library(tidyverse)
 library(foreach)
 library(doParallel)
 registerDoParallel(cores = 12)
-source("R/gdal-aggregate.R")
 
 # set all values below this to 0
 clamp_value <- 0.0001
 
 # template at 10 km
-r_template <- dir("data/tifs/birds/", "10km.tif$", full.names = TRUE) %>% 
-  pluck(1) %>% 
-  raster() %>% 
-  raster()
+r_template <- raster("data/template_eck4_10km.tif")
+r_template_2km <- disaggregate(r_template, fact = 5)
 
 # resample at 2 km, then aggregate to 10km, then clamp
 f_raw <- list.files("data/raw/", "tif$", full.names = TRUE)
@@ -28,7 +25,9 @@ assets <- foreach (f = f_raw, .combine = c) %dopar% {
     paste0("_eck4_10km.tif") %>% 
     file.path(processed_dir, .)
   
-  r <- gdal_aggregate(f, fact = 5, e = extent(r_template)) %>% 
+  r <- raster(f) %>% 
+    resample(r_template_2km) %>% 
+    aggregate(fact = 5) %>% 
     reclassify(rcl = c(-Inf, clamp_value, NA_real_),
                filename = f_out, overwrite = TRUE, 
                options = c("COMPRESS=LZW", "TILED=YES"))
