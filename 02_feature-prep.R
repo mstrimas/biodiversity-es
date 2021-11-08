@@ -8,6 +8,8 @@ library(doParallel)
 registerDoParallel(detectCores() - 6)
 source("R/get-raster-values.R")
 
+DATA_DIR <- "data/"
+
 # resolution in km
 resolution <- 10
 

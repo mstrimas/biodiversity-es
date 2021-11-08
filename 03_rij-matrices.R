@@ -6,6 +6,8 @@ library(foreach)
 library(doParallel)
 registerDoParallel(detectCores() - 2)
 
+DATA_DIR <- "data/"
+
 # resolution in km
 resolution <- 10
 

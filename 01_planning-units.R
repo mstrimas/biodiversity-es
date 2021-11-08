@@ -8,6 +8,8 @@ library(doParallel)
 registerDoParallel(cores = 12)
 source("R/get-raster-values.R")
 
+DATA_DIR <- "data/"
+
 # directories
 pu_dir <- file.path(DATA_DIR, "pu")
 dir.create(pu_dir, showWarnings = FALSE)
@@ -16,7 +18,7 @@ dir.create(pu_dir, showWarnings = FALSE)
 res <- 10
 
 # full set of planning units
-tif_dir <- "data/tifs"
+tif_dir <- path(DATA_DIR, "tifs")
 feature_types <- dir_ls(tif_dir, type = "directory") %>% 
   basename()
 for (ft in feature_types) {

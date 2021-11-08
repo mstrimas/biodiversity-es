@@ -7,6 +7,9 @@ library(tidyverse)
 source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
+DATA_DIR <- "data/"
+OUTPUT_DIR <- "output/"
+
 # set all values below this to 0
 clamp_value <- 1
 
@@ -14,7 +17,7 @@ clamp_value <- 1
 n_cores <- 10
 resolution <- 10
 # prioritization scenarios
-scenarios <- expand_grid(biod = c(0,1),
+scenarios <- expand_grid(biod = c(0, 1),
                          es = c(0, 0.3, 0.5, 0.9),
                          budget = c(0.3, 0.5, 1)) %>% 
   mutate(scenario = str_glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}")) %>% 

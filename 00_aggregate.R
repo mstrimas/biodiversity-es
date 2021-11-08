@@ -5,15 +5,17 @@ library(foreach)
 library(doParallel)
 registerDoParallel(cores = 12)
 
+DATA_DIR <- "data/"
+
 # set all values below this to 0
 clamp_value <- 0.0001
 
 # template at 10 km
-r_template <- raster("data/template_eck4_10km.tif")
+r_template <- raster(path(DATA_DIR, "template_eck4_10km.tif"))
 r_template_2km <- disaggregate(r_template, fact = 5)
 
 # resample at 2 km, then aggregate to 10km, then clamp
-f_raw <- list.files("data/raw/", "tif$", full.names = TRUE)
+f_raw <- list.files(path(DATA_DIR, "raw/"), "tif$", full.names = TRUE)
 processed_dir <- file.path("data", "tifs", "es")
 dir.create(processed_dir, recursive = TRUE, showWarnings = FALSE)
 assets <- foreach (f = f_raw, .combine = c) %dopar% {
