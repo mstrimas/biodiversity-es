@@ -1,108 +1,143 @@
-library(raster)
+# identify the set of planning units to use in the prioritization
+# only include rasters cells with at least one non-zero feature
+
+library(terra)
 library(fasterize)
 library(sf)
 library(fs)
+library(glue)
 library(tidyverse)
+library(arrow)
 library(foreach)
 library(doParallel)
 registerDoParallel(cores = 12)
 source("R/get-raster-values.R")
 
-DATA_DIR <- "data/"
+data_dir <- "data"
+resolutions <- c(2, 3, 5, 10)
 
 # directories
-pu_dir <- file.path(DATA_DIR, "pu")
-dir.create(pu_dir, showWarnings = FALSE)
+tif_dir <- path(data_dir, "tifs")
+pu_dir <- path(data_dir, "pu")
+dir_create(pu_dir)
 
-# target resolutions in km
-res <- 10
+# land
+crs <- path(data_dir, "eck4.wkt") %>% 
+  read_lines() %>% 
+  trimws() %>% 
+  paste(collapse = "") %>% 
+  st_crs()
+land <- path(data_dir, "esri-countries.gpkg") %>% 
+  read_sf()  %>% 
+  filter(NAME != "Antarctica") %>% 
+  st_transform(crs = crs) %>% 
+  st_buffer(dist = 10000) %>% 
+  st_cast("MULTIPOLYGON") land %>% 
+  transmute(land = 1) %>% 
+  vect()
 
-# full set of planning units
-tif_dir <- path(DATA_DIR, "tifs")
-feature_types <- dir_ls(tif_dir, type = "directory") %>% 
-  basename()
-for (ft in feature_types) {
-  tifs <- dir(path(tif_dir, ft), "10km.tif$", full.names = TRUE)
-  f_counts <- str_glue("n-features_{ft}_eck4_{res}km.tif") %>% 
-    file.path(tif_dir, .)
-  if (file.exists(f_counts)) {
-    next()
-  }
-  if (length(tifs) >= 1000) {
-    n_groups <- ceiling(length(tifs) / 1000)
-    tif_groups <- split(tifs, cut(seq_along(tifs), n_groups, labels = FALSE))
-    td <- tempdir()
-    tifs <- str_glue("{ft}_group-{seq_len(n_groups)}.tif") %>% 
-      path(td, .)
-    s <- foreach (g = seq_len(n_groups)) %dopar% {
-      cmd <- str_glue("gdal-summarize.py -q -f count -o {tifs[g]} ",
-                      "{paste(tif_groups[[g]], collapse = ' ')}")
-      system(cmd)
+# identify planning units with non-NA values for each feature type
+for (this_res in resolutions) {
+  res_lbl <- paste0(this_res, "km")
+  tif_res_dir <- path(tif_dir, res_lbl)
+  pu_res_dir <- path(pu_dir, res_lbl)
+  dir_create(pu_res_dir)
+  
+  feature_types <- dir_ls(tif_res_dir, type = "directory") %>% 
+    basename()
+  
+  # for each feature type make rasters with number of non-zero features
+  for (ft in feature_types) {
+    tifs <- path(tif_res_dir, ft) %>% 
+      dir_ls(glob = "*.tif")
+    f_counts <- glue("n-features_{ft}_eck4_{this_res}km.tif") %>% 
+      path(tif_res_dir, .)
+    temp_dir <- tempdir()
+    if (length(tifs) >= 1000) {
+      n_groups <- ceiling(length(tifs) / 1000)
+      tif_groups <- split(tifs, cut(seq_along(tifs), n_groups, labels = FALSE))
+      tifs <- glue("{ft}_group-{seq_len(n_groups)}.tif") %>% 
+        path(temp_dir, .)
+      s <- foreach (g = seq_len(n_groups)) %dopar% {
+        cmd <- glue("gdal-summarize.py -q -f count -o {tifs[g]} ",
+                    "{paste(tif_groups[[g]], collapse = ' ')} ",
+                    "--overwrite")
+        system(cmd)
+      }
+      delete_tifs <- TRUE
+      summary_stat <- "sum"
+    } else {
+      delete_tifs <- FALSE
+      summary_stat <- "count"
     }
-    summary_stat <- "sum"
-  } else {
-    summary_stat <- "count"
+    cmd <- glue("gdal-summarize.py -q -f {summary_stat} -o {f_counts} ",
+                "--co 'COMPRESS=DEFLATE' {paste(tifs, collapse = ' ')} ",
+                "--overwrite")
+    system(cmd)
+    
+    if (delete_tifs) {
+      file_delete(tifs)
+    }
   }
-  cmd <- str_glue("gdal-summarize.py -q -f {summary_stat} -o {f_counts} ",
-                  "--co 'COMPRESS=DEFLATE' {paste(tifs, collapse = ' ')}")
+  
+  # total count across all feature types
+  f_counts <- dir_ls(path(tif_dir, res_lbl), 
+                     regexp = "n-features_[a-z]+_eck4", 
+                     recurse = FALSE)
+  f_total <- glue("n-features_eck4_{this_res}km.tif") %>% 
+    path(tif_res_dir, .)
+  cmd <- glue("gdal-summarize.py -q -f sum -o {f_total} --overwrite ",
+              "--co 'COMPRESS=DEFLATE' {paste(f_counts, collapse = ' ')}")
   system(cmd)
-  unlink(td)
+  r_counts <- rast(f_total)
+  global(r_counts, range, na.rm = TRUE)
+  
+  # create mask/template based on cells that have data
+  # only consider cells within 1 grid cell of of land, exclude antarctica
+  # land mask
+  f_lm <- glue("land-mask_eck4_{this_res}km.tif") %>% 
+    path(pu_res_dir, .)
+  if (!file_exists(f_lm)) {
+    land_mask <- rasterize(land, r_counts, field = 1) %>% 
+      writeRaster(filename = f_lm, 
+                  datatype = "INT1U", overwrite = T,
+                  gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+  }
+  land_mask <- rast(f_lm)
+  # planning unit mask
+  f_mask <- glue("pu-mask_eck4_{this_res}km.tif") %>% 
+    path(pu_res_dir, .)
+  r_mask <- r_counts %>% 
+    # remove zeros
+    subst(0, NA) %>% 
+    mask(land_mask, 
+         filename = f_mask, 
+         datatype = "INT4U", 
+         gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+  global(r_mask, range, na.rm = TRUE)
+  
+  # create raster will cells equal to planning unit id
+  r <- rast(r_mask)
+  # assign cell id
+  stopifnot(ncell(r) < 2^31)
+  values(r) <- seq_len(ncell(r))
+  # mask to non-zero asset cells
+  f <- glue("pu_eck4_{this_res}km.tif") %>% 
+    path(pu_res_dir, .)
+  r <- mask(r, r_mask,
+            filename = f, overwrite = TRUE, 
+            datatype = "INT4U",
+            gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+  
+  # save the non-masked cell ids for each template
+  v <- get_raster_values(r) %>% 
+    sort()
+  stopifnot(anyDuplicated(v) == 0)
+  v <- tibble(id = as.integer(seq_along(v)),
+              cell_id = as.integer(v))
+  glue("pu_{this_res}km.parquet") %>% 
+    path(pu_res_dir, .) %>% 
+    write_parquet(v, ., compression = "gzip")
+  rm(v)
+  co <- capture.output(gc())
 }
-f_counts <- dir(tif_dir, "n-features_[a-z]+_eck4", full.names = TRUE)
-f_total <- str_glue("n-features_eck4_{res}km.tif") %>% 
-  file.path(tif_dir, .)
-cmd <- str_glue("gdal-summarize.py -q -f sum -o {f_total} --overwrite ",
-                "--co 'COMPRESS=DEFLATE' {paste(f_counts, collapse = ' ')}")
-system(cmd)
-r_counts <- raster(f_total)
-cellStats(r_counts, range)
-
-# create mask/template based on cells that have data
-# only consider cells within 10 km of land, exclude antarctica
-# land mask
-f_lm <- str_glue("land-mask_eck4_{res}km.tif") %>% 
-  file.path(pu_dir, .)
-if (!file.exists(f_lm)) {
-  land_mask <- file.path(DATA_DIR, "esri-countries.gpkg") %>% 
-    read_sf()  %>% 
-    st_transform(crs = projection(r_counts)) %>% 
-    filter(NAME != "Antarctica") %>% 
-    st_buffer(dist = 10000) %>% 
-    st_cast("MULTIPOLYGON") %>% 
-    fasterize(r_counts) %>% 
-    writeRaster(f_lm, overwrite = TRUE,
-                options = c("COMPRESS=LZW", "TILED=YES"))
-}
-land_mask <- raster(f_lm)
-# planning unit mask
-f_mask <- str_glue("pu-mask_eck4_{res}km.tif") %>% 
-  file.path(pu_dir, .)
-r_mask <- r_counts %>% 
-  # remove zeros
-  subs(data.frame(id = 0, v = NA), subsWithNA = FALSE) %>% 
-  mask(land_mask, filename = f_mask, options = c("COMPRESS=LZW", "TILED=YES"))
-cellStats(r_mask, range)
-
-# create raster will cells equal to planning unit id
-r <- raster(r_mask)
-dataType(r) <- "INT4S"
-# assign cell id
-stopifnot(ncell(r) < 2^31)
-values(r) <- seq.int(ncell(r))
-# mask to non-zero asset cells
-f <- str_glue("pu_eck4_{res}km.tif") %>% 
-  file.path(pu_dir, .)
-r <- mask(r, r_mask,
-          filename = f, overwrite = TRUE, datatype = "INT4S",
-          options = c("COMPRESS=LZW", "TILED=YES"))
-
-# save the non-masked cell ids for each template
-f_cells <- str_glue("pu_{res}km.rds") %>% 
-  file.path(pu_dir, .)
-v <- get_raster_values(r) %>% 
-  sort()
-stopifnot(anyDuplicated(v) == 0)
-v <- tibble(id = seq_along(v), cell_id = v)
-saveRDS(v, f_cells)
-rm(v)
-co <- capture.output(gc())

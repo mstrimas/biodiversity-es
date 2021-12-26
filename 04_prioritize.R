@@ -1,5 +1,8 @@
 # run prioritization scenarios
 
+library(fs)
+library(glue)
+library(arrow)
 library(Matrix)
 library(prioritizr)
 library(gurobi)
@@ -7,8 +10,8 @@ library(tidyverse)
 source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
-DATA_DIR <- "data/"
-OUTPUT_DIR <- "output/"
+data_dir <- "data/"
+output_dir <- "output/"
 
 # set all values below this to 0
 clamp_value <- 1
@@ -16,11 +19,15 @@ clamp_value <- 1
 # parameters
 n_cores <- 10
 resolution <- 10
+res_lbl <- paste0(resolution, "km")
+res_output_dir <- path(output_dir, res_lbl)
+dir_create(res_output_dir)
+
 # prioritization scenarios
 scenarios <- expand_grid(biod = c(0, 1),
                          es = c(0, 0.3, 0.5, 0.9),
                          budget = c(0.3, 0.5, 1)) %>% 
-  mutate(scenario = str_glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}")) %>% 
+  mutate(scenario = glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}")) %>% 
   select(scenario, es, biod, budget) %>%
   filter(es > 0 | biod > 0, !(biod == 0 & budget < 1))
 
@@ -28,31 +35,30 @@ scenarios <- expand_grid(biod = c(0, 1),
 # input data ----
 
 # features
-#TODO adjust features csv to incorporate new carbon layer
-features <- str_glue("features_{resolution}km.csv") %>% 
-  file.path(DATA_DIR, .) %>% 
-  read_csv()
+features <- path(data_dir, "features.csv") %>% 
+  read_csv() %>% 
+  filter(res_km == resolution)
 # planning units
-pu <- str_glue("pu_{resolution}km.rds") %>% 
-  file.path(DATA_DIR, "pu", .) %>% 
-  read_rds()
+pu <- glue("pu_{res_lbl}.parquet") %>% 
+  path(data_dir, "pu", res_lbl, .) %>% 
+  read_parquet()
 # raster template
-r <- str_glue("pu_eck4_{resolution}km.tif") %>% 
-  file.path(DATA_DIR, "pu", .) %>% 
+r <- glue("pu_eck4_{res_lbl}.tif") %>% 
+  path(data_dir, "pu", res_lbl, .) %>% 
   raster() %>% 
   raster()
 # rij matrices
-rij <- str_glue("rij-matrix_{resolution}km.rds") %>% 
-  file.path(DATA_DIR, .) %>% 
+rij <- glue("rij-matrix_{res_lbl}.rds") %>% 
+  path(data_dir, .) %>% 
   read_rds()
 
-#clamp NCP layers
-#only clamp values for layers that have a huge range.
+# clamp NCP layers
+# only clamp values for layers that have a huge range.
 es_features <- features$id[features$type == "es"]
 rij_sub <- rij[es_features, ]
-for(ii in 1:nrow(rij_sub)){
-  if(max(rij_sub[ii,]) > 1000000){
-    rij_sub[ii, ] <- ifelse(rij_sub[ii,] < clamp_value, 0, rij_sub[ii,])
+for (ii in seq_len(nrow(rij_sub))) {
+  if (max(rij_sub[ii, ]) > 1000000) {
+    rij_sub[ii, ] <- ifelse(rij_sub[ii, ] < clamp_value, 0, rij_sub[ii, ])
   }
 }
 rij[es_features, ] <- rij_sub
@@ -76,9 +82,7 @@ features <- features %>%
 
 # prioritize ---- 
 
-
-# for (i in 10:nrow(scenarios)) {
-for (i in 1:nrow(scenarios)) {
+for (i in seq_len(nrow(scenarios))) {
   # ecosystem service targets
   features$prop <- ifelse(features$type == "es", scenarios$es[i], 
                           features$prop0 * scenarios$biod[i])
@@ -112,22 +116,22 @@ for (i in 1:nrow(scenarios)) {
   # save solution stats
   scenarios[["n_selected"]][i] <- sum(s)
   scenarios[["runtime"]][i] <- attr(s, "runtime")
-  scenarios[["solution"]][i] <- str_glue("solution_{scenarios$scenario[i]}",
-                                         "_{resolution}km.rds")
-  scenarios[["raster"]][i] <- str_glue("solution_{scenarios$scenario[i]}",
-                                       "_{resolution}km.tif")
+  scenarios[["solution"]][i] <- glue("solution_{scenarios$scenario[i]}",
+                                     "_{res_lbl}.rds")
+  scenarios[["raster"]][i] <- glue("solution_{scenarios$scenario[i]}",
+                                   "_{res_lbl}.tif")
   
   # solution object
   sol <- pu
   sol$selected <- as.numeric(s)
   scenarios[["solution"]][i] %>% 
-    file.path(OUTPUT_DIR, .) %>% 
+    path(res_output_dir, .) %>% 
     write_rds(s, ., compress = "gz")
   # raster
   r_sol <- r
   r_sol[sol$cell_id] <- as.numeric(sol$selected)
   r_sol <- scenarios[["raster"]][i] %>%
-    file.path(OUTPUT_DIR, .) %>% 
+    file.path(res_output_dir, .) %>% 
     writeRaster(r_sol, ., 
                 # datatype = "FLT4S",
                 options = c("COMPRESS=LZW", "TILED=YES"),
@@ -138,6 +142,6 @@ for (i in 1:nrow(scenarios)) {
   co <- capture.output(gc())
   removeTmpFiles(h = 0)
 }
-str_glue("scenarios_{resolution}km.csv") %>%
-  file.path(OUTPUT_DIR, .) %>% 
+glue("scenarios_{res_lbl}.csv") %>%
+  path(res_output_dir, .) %>% 
   write_csv(scenarios, .)

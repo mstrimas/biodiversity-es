@@ -10,11 +10,11 @@
 #   numeric vector if cells is missing, data frame if cells if provided
 get_raster_values <- function(x, cells = NULL, drop_na = TRUE, 
                               drop_zero = TRUE) {
-  stopifnot(inherits(x, "Raster"))
+  stopifnot(inherits(x, "SpatRaster"))
   stopifnot(is.logical(drop_na), length(drop_na) == 1)
   stopifnot(is.logical(drop_zero), length(drop_zero) == 1)
   
-  v <- raster::values(x)
+  v <- terra::values(x)
   co <- capture.output(gc())
   if (is.null(cells)) {
     if (isTRUE(drop_na)) {
