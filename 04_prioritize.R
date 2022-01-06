@@ -74,9 +74,9 @@ rij[es_features, ] <- rij_sub
 # total across all planning units
 # for biodiversity features, values are % of cell occupied
 # aoh = area of planning unit times total representation / 100
-features <- rowSums(rij) %>% 
-  enframe(value = "total") %>% 
-  inner_join(features, ., by = "name")
+features$total <- rowSums(rij) %>% 
+  enframe(value = "total") %>% pull(total)
+  # inner_join(features, ., by = "name")
 # set biodiversity targets
 max_total <- resolution^2
 features <- features %>% 
