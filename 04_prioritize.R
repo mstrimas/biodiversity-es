@@ -11,24 +11,29 @@ source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
 data_dir <- "data/"
-output_dir <- "output/"
+output_dir <- "output_2b/"
 
 # set all values below this to 0
 clamp_value <- 1
 
 # parameters
-n_cores <- 10
+n_cores <- 30
 resolution <- 10
 res_lbl <- paste0(resolution, "km")
 res_output_dir <- path(output_dir, res_lbl)
 dir_create(res_output_dir)
 
 # prioritization scenarios
-scenarios <- expand_grid(biod = c(0, 1),
-                         es = c(0, 0.3, 0.5, 0.9),
-                         budget = c(0.3, 0.5, 1)) %>% 
-  mutate(scenario = glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}")) %>% 
-  select(scenario, es, biod, budget) %>%
+scenarios <- expand_grid(biod = 1,
+                         es = c(seq(0, 0.75, 0.15), 0.95),
+                         budget = 1,
+                         resolution = resolution,
+                         n_selected = NA,
+                         runtime = NA,
+                         solution = NA,
+                         raster = NA) %>% 
+  mutate(scenario = str_glue("es-{100 * es}_biod-{biod}_budget-{100 * budget}_resolution-{resolution}km")) %>% 
+  select(scenario, es, biod, budget, resolution, n_selected, runtime, solution, raster) %>%
   filter(es > 0 | biod > 0, !(biod == 0 & budget < 1))
 
 
