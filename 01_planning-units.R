@@ -32,7 +32,7 @@ land <- path(data_dir, "esri-countries.gpkg") %>%
   filter(NAME != "Antarctica") %>% 
   st_transform(crs = crs) %>% 
   st_buffer(dist = 10000) %>% 
-  st_cast("MULTIPOLYGON") land %>% 
+  st_cast("MULTIPOLYGON") %>% 
   transmute(land = 1) %>% 
   vect()
 
@@ -140,4 +140,34 @@ for (this_res in resolutions) {
     write_parquet(v, ., compression = "gzip")
   rm(v)
   co <- capture.output(gc())
+}
+
+
+# protected areas
+pa <- read_sf("data/protected-areas/global-2021-10-30.shp") %>% 
+  st_transform(crs = crs) %>% 
+  st_geometry() %>% 
+  st_combine()
+for (this_res in resolutions) {
+  res_lbl <- paste0(this_res, "km")
+  pu_res_dir <- path(pu_dir, res_lbl)
+  
+  r <- glue("pu-mask_eck4_{this_res}km.tif") %>% 
+    path(pu_res_dir, .) %>% 
+    rast()
+  
+  pu <- glue("pu_{this_res}km.parquet") %>% 
+    path(pu_res_dir, .) %>% 
+    read_parquet()
+  r_pa <- exact_extract(r, pa, include_cell = TRUE)[[1]] %>% 
+    filter(!is.na(value)) %>% 
+    select(cell_id = cell, coverage_fraction) %>% 
+    inner_join(pu, by = "cell_id") %>% 
+    select(pu_id = id, coverage_fraction) %>% 
+    arrange(pu_id)
+  
+  glue("protected-areas_{this_res}km.parquet") %>% 
+    path(pu_res_dir, .) %>% 
+    write_parquet(r_pa, ., compression = "gzip")
+  rm(r_pa)
 }
