@@ -68,6 +68,14 @@ for (ii in seq_len(nrow(rij_sub))) {
 }
 rij[es_features, ] <- rij_sub
 
+# number of non-zero planning units
+n_pu <- nrow(rij)
+# number of cells on land+buffer
+n_land <- glue("land-mask_eck4_{res_lbl}.tif") %>% 
+  path(data_dir, "pu", res_lbl, .) %>% 
+  raster() %>% 
+  cellStats("sum", na.rm = TRUE)
+
 # for testing, remove most of the features
 # rij <- rij[1:1000, ]
 
@@ -120,6 +128,8 @@ for (i in seq_len(nrow(scenarios))) {
   
   # save solution stats
   scenarios[["n_selected"]][i] <- sum(s)
+  scenarios[["pct_nonzero_pus"]][i] <- sum(s) / n_pu
+  scenarios[["pct_land_pus"]][i] <- sum(s) / n_land
   scenarios[["runtime"]][i] <- attr(s, "runtime")
   scenarios[["solution"]][i] <- glue("solution_{scenarios$scenario[i]}",
                                      "_{res_lbl}.rds")
