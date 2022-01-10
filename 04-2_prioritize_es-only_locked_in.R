@@ -20,7 +20,7 @@ clamp_value <- 1
 n_cores <- 30
 
 # 2, 3, 5, 10
-resolution <- 10
+resolution <- 2
 res_lbl <- paste0(resolution, "km")
 res_output_dir <- path(output_dir, res_lbl)
 dir_create(res_output_dir)
