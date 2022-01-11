@@ -11,7 +11,7 @@ source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
 data_dir <- "data/"
-output_dir <- "output_2b/"
+output_dir <- "output_1/"
 
 # set all values below this to 0
 clamp_value <- 1
@@ -25,7 +25,7 @@ dir_create(res_output_dir)
 
 # prioritization scenarios
 scenarios <- expand_grid(biod = 1,
-                         es = c(seq(0, 0.75, 0.15), 0.95),
+                         es = seq(0, 1, 0.05),
                          budget = 1,
                          resolution = resolution,
                          n_selected = NA,

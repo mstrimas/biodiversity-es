@@ -17,7 +17,7 @@ output_dir <- "output_4_1/"
 clamp_value <- 1
 
 # parameters
-n_cores <- 30
+n_cores <- 10
 
 # 2, 3, 5, 10
 resolution <- 10
@@ -27,7 +27,7 @@ dir_create(res_output_dir)
 
 # prioritization scenarios
 scenarios <- expand_grid(biod = 1,
-                         es = c(seq(0, 0.75, 0.15), 0.95),
+                         es = seq(0, 1, 0.05),
                          budget = 1,
                          resolution = resolution,
                          n_selected = NA,
@@ -80,6 +80,16 @@ for (ii in seq_len(nrow(rij_sub))) {
 
 rij <- rij_sub
 features <- features[features$type == "es",]
+
+
+# number of non-zero planning units
+n_pu <- nrow(rij)
+# number of cells on land+buffer
+n_land <- glue("land-mask_eck4_{res_lbl}.tif") %>% 
+  path(data_dir, "pu", res_lbl, .) %>% 
+  raster() %>% 
+  cellStats("sum", na.rm = TRUE)
+
 # rij[es_features, ] <- rij_sub
 
 # for testing, remove most of the features
@@ -134,6 +144,8 @@ for (i in seq_len(nrow(scenarios))) {
   
   # save solution stats
   scenarios[["n_selected"]][i] <- sum(s)
+  scenarios[["pct_nonzero_pus"]][i] <- sum(s) / n_pu
+  scenarios[["pct_land_pus"]][i] <- sum(s) / n_land
   scenarios[["runtime"]][i] <- attr(s, "runtime")
   scenarios[["solution"]][i] <- glue("solution_{scenarios$scenario[i]}",
                                      "_{res_lbl}.rds")
