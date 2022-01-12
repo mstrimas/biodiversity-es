@@ -1,8 +1,0 @@
-scenario,es,biod,budget,resolution,n_selected,runtime,solution,raster
-es-0_biod-1_budget-100_resolution-10km,0,1,1,10,228981.92248661665,5053.0599999999995,solution_es-0_biod-1_budget-100_resolution-10km_10km.rds,solution_es-0_biod-1_budget-100_resolution-10km_10km.tif
-es-15_biod-1_budget-100_resolution-10km,0.15,1,1,10,228981.92248669284,4016.1600000000008,solution_es-15_biod-1_budget-100_resolution-10km_10km.rds,solution_es-15_biod-1_budget-100_resolution-10km_10km.tif
-es-30_biod-1_budget-100_resolution-10km,0.3,1,1,10,248771.67738864716,6835.789999999999,solution_es-30_biod-1_budget-100_resolution-10km_10km.rds,solution_es-30_biod-1_budget-100_resolution-10km_10km.tif
-es-45_biod-1_budget-100_resolution-10km,0.44999999999999996,1,1,10,320145.1939702996,6043.639999999999,solution_es-45_biod-1_budget-100_resolution-10km_10km.rds,solution_es-45_biod-1_budget-100_resolution-10km_10km.tif
-es-60_biod-1_budget-100_resolution-10km,0.6,1,1,10,417670.23629166617,6538.66,solution_es-60_biod-1_budget-100_resolution-10km_10km.rds,solution_es-60_biod-1_budget-100_resolution-10km_10km.tif
-es-75_biod-1_budget-100_resolution-10km,0.75,1,1,10,555353.579760873,4030.6800000000003,solution_es-75_biod-1_budget-100_resolution-10km_10km.rds,solution_es-75_biod-1_budget-100_resolution-10km_10km.tif
-es-95_biod-1_budget-100_resolution-10km,0.95,1,1,10,842984.6888904234,2720.510000000002,solution_es-95_biod-1_budget-100_resolution-10km_10km.rds,solution_es-95_biod-1_budget-100_resolution-10km_10km.tif
