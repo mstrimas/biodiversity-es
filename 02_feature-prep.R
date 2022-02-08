@@ -8,7 +8,7 @@ library(tidyverse)
 library(arrow)
 library(foreach)
 library(doParallel)
-registerDoParallel(12)
+registerDoParallel(14)
 source("R/get-raster-values.R")
 
 data_dir <- "data/"
@@ -42,7 +42,7 @@ for (this_res in resolutions) {
     mutate(res_km = this_res,
            type = basename(dirname(tif)),
            layer = basename(tif) %>% 
-             str_remove("_[0-9]+km_.*tif$") %>% 
+             str_remove("_eck4.*") %>% 
              str_remove("_aoh_[0-9]+km.tif") %>% 
              str_to_lower() %>% 
              str_replace_all("(_|\\s)+", "-"),
@@ -104,8 +104,6 @@ for (this_res in resolutions) {
            name = paste(type, layer, sep = "_")) %>% 
     select(id, name, type, layer, res_km, tif, rij) %>% 
     bind_rows(features, .)
-  write_csv(features, paste0("features", this_res, ".csv"), na = "")
-  write_csv(no_rep, paste0("no_rep", this_res, ".csv"), na = "")
 }
 write_csv(no_rep, path(data_dir, "no-representation.csv"), na = "")
 write_csv(features, path(data_dir, "features.csv"), na = "")

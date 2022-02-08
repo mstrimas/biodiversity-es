@@ -6,6 +6,9 @@ library(glue)
 library(tidyverse)
 library(arrow)
 library(tictoc)
+library(foreach)
+library(doParallel)
+registerDoParallel(14)
 
 data_dir <- "data/"
 resolutions <- 10
@@ -26,10 +29,8 @@ for (this_res in resolutions) {
   # load representation tables
   stopifnot(all(file.exists(f$rij)))
   tic()
-  rij <- NULL
-  for (i in seq_len(nrow(f))) {
-    rij <- mutate(read_rds(f$rij[i]), species = f$id[i]) %>% 
-      bind_rows(rij, .)
+  rij <- foreach (i = seq_len(nrow(f)), .combine = bind_rows) %dopar% {
+    mutate(read_rds(f$rij[i]), species = f$id[i])
   }
   toc()
   

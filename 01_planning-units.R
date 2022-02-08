@@ -2,6 +2,7 @@
 # only include rasters cells with at least one non-zero feature
 
 library(terra)
+library(exactextractr)
 library(fasterize)
 library(sf)
 library(fs)
@@ -11,7 +12,7 @@ library(arrow)
 library(foreach)
 library(doParallel)
 registerDoParallel(cores = 12)
-source("R/get-raster-values.R")
+sf_use_s2(FALSE)
 
 data_dir <- "data"
 resolutions <- c(2, 3, 5, 10)
@@ -31,10 +32,8 @@ land <- path(data_dir, "esri-countries.gpkg") %>%
   read_sf()  %>% 
   filter(NAME != "Antarctica") %>% 
   st_transform(crs = crs) %>% 
-  st_buffer(dist = 10000) %>% 
-  st_cast("MULTIPOLYGON") %>% 
-  transmute(land = 1) %>% 
-  vect()
+  st_geometry() %>% 
+  st_combine()
 
 # identify planning units with non-NA values for each feature type
 for (this_res in resolutions) {
@@ -92,53 +91,36 @@ for (this_res in resolutions) {
   r_counts <- rast(f_total)
   global(r_counts, range, na.rm = TRUE)
   
-  # create mask/template based on cells that have data
-  # only consider cells within 1 grid cell of of land, exclude antarctica
+  # create mask/template based on cells that have data and are on land
   # land mask
+  land_coverage <- exact_extract(r_counts, land, include_cell = TRUE)[[1]] %>% 
+    rename(cell_id = cell)
+  land_mask <- rast(r_counts)
+  land_mask[land_coverage$cell_id] <- 1
   f_lm <- glue("land-mask_eck4_{this_res}km.tif") %>% 
     path(pu_res_dir, .)
-  if (!file_exists(f_lm)) {
-    land_mask <- rasterize(land, r_counts, field = 1) %>% 
-      writeRaster(filename = f_lm, 
-                  datatype = "INT1U", overwrite = T,
-                  gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
-  }
-  land_mask <- rast(f_lm)
-  # planning unit mask
-  f_mask <- glue("pu-mask_eck4_{this_res}km.tif") %>% 
-    path(pu_res_dir, .)
-  r_mask <- r_counts %>% 
-    # remove zeros
-    subst(0, NA) %>% 
-    mask(land_mask, 
-         filename = f_mask, 
-         datatype = "INT4U", 
-         gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
-  global(r_mask, range, na.rm = TRUE)
+  land_mask <- writeRaster(land_mask, filename = f_lm, 
+                           datatype = "INT1U", overwrite = TRUE,
+                           gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
   
   # create raster will cells equal to planning unit id
-  r <- rast(r_mask)
-  # assign cell id
-  stopifnot(ncell(r) < 2^31)
-  values(r) <- seq_len(ncell(r))
-  # mask to non-zero asset cells
+  pu_land <- land_coverage %>% 
+    filter(!is.na(value), value > 0) %>% 
+    arrange(cell_id) %>% 
+    transmute(id = row_number(), cell_id, coverage_fraction)
+  pu <- rast(r_counts)
+  pu[pu_land$cell_id] <- pu_land$cell_id
   f <- glue("pu_eck4_{this_res}km.tif") %>% 
     path(pu_res_dir, .)
-  r <- mask(r, r_mask,
-            filename = f, overwrite = TRUE, 
-            datatype = "INT4U",
-            gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+  pu <- writeRaster(pu, filename = f, 
+                    datatype = "INT4U", overwrite = TRUE,
+                    gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
   
   # save the non-masked cell ids for each template
-  v <- get_raster_values(r) %>% 
-    sort()
-  stopifnot(anyDuplicated(v) == 0)
-  v <- tibble(id = as.integer(seq_along(v)),
-              cell_id = as.integer(v))
   glue("pu_{this_res}km.parquet") %>% 
     path(pu_res_dir, .) %>% 
-    write_parquet(v, ., compression = "gzip")
-  rm(v)
+    write_parquet(pu_land, ., compression = "gzip")
+  rm(pu_land)
   co <- capture.output(gc())
 }
 
@@ -152,13 +134,14 @@ for (this_res in resolutions) {
   res_lbl <- paste0(this_res, "km")
   pu_res_dir <- path(pu_dir, res_lbl)
   
-  r <- glue("pu-mask_eck4_{this_res}km.tif") %>% 
+  r <- glue("pu_eck4_{this_res}km.tif") %>% 
     path(pu_res_dir, .) %>% 
     rast()
   
   pu <- glue("pu_{this_res}km.parquet") %>% 
     path(pu_res_dir, .) %>% 
-    read_parquet()
+    read_parquet() %>% 
+    select(id, cell_id)
   r_pa <- exact_extract(r, pa, include_cell = TRUE)[[1]] %>% 
     filter(!is.na(value)) %>% 
     select(cell_id = cell, coverage_fraction) %>% 
