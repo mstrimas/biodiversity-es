@@ -7,6 +7,7 @@ library(Matrix)
 library(prioritizr)
 library(gurobi)
 library(tidyverse)
+library(units)
 source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 

@@ -7,6 +7,7 @@ library(Matrix)
 library(prioritizr)
 library(gurobi)
 library(tidyverse)
+library(units)
 source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
@@ -17,8 +18,7 @@ output_dir <- "output_4_3/"
 clamp_value <- 1
 
 # parameters
-n_cores <- 10
-
+n_cores <- 30
 # 2, 3, 5, 10
 resolution <- 10
 res_lbl <- paste0(resolution, "km")
