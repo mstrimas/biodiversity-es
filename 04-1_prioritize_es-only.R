@@ -11,7 +11,7 @@ source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
 data_dir <- "data/"
-output_dir <- "output/"
+output_dir <- "output_4_1/"
 
 # set all values below this to 0
 clamp_value <- 1
@@ -62,15 +62,23 @@ rij <- glue("rij-matrix_{res_lbl}.rds") %>%
   path(data_dir, .) %>% 
   read_rds()
 
-# clamp NCP layers
-# only clamp values for layers that have a huge range.
+# re-scale ES data
 es_features <- features$id[features$type == "es"]
 rij_sub <- rij[es_features, ]
-for (ii in seq_len(nrow(rij_sub))) {
-  if (max(rij_sub[ii, ]) > 1000000) {
-    rij_sub[ii, ] <- ifelse(rij_sub[ii, ] < clamp_value, 0, rij_sub[ii, ])
-  }
+
+## calculate scaling factors needed to multiply data so max value == 100
+es_scaling <- 100 / apply(
+  rij_sub,
+  MARGIN = 1,
+  FUN = max,
+  na.rm = TRUE
+)
+
+## apply scaling factors
+for (ii in seq_along(es_scaling)) {
+  rij_sub[ii, ] <- rij_sub[ii, ] * es_scaling[ii]
 }
+rij_sub <- drop0(rij_sub) # ensure sparsity
 
 rij <- rij_sub
 features <- features[features$type == "es",]

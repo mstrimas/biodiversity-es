@@ -11,14 +11,14 @@ source("R/calculate-targets.R")
 source("R/multi-objective-prioritization.R")
 
 data_dir <- "data/"
-output_dir <- "output_1/"
+output_dir <- "output_4/"
 
 # set all values below this to 0
 clamp_value <- 1
 
 # parameters
 n_cores <- 30
-resolution <- 2
+resolution <- 10
 res_lbl <- paste0(resolution, "km")
 res_output_dir <- path(output_dir, res_lbl)
 dir_create(res_output_dir)
@@ -57,16 +57,28 @@ rij <- glue("rij-matrix_{res_lbl}.rds") %>%
   path(data_dir, .) %>% 
   read_rds()
 
-# clamp NCP layers
-# only clamp values for layers that have a huge range.
+# re-scale ES data
 es_features <- features$id[features$type == "es"]
 rij_sub <- rij[es_features, ]
-for (ii in seq_len(nrow(rij_sub))) {
-  if (max(rij_sub[ii, ]) > 1000000) {
-    rij_sub[ii, ] <- ifelse(rij_sub[ii, ] < clamp_value, 0, rij_sub[ii, ])
-  }
+
+## calculate scaling factors needed to multiply data so max value == 100
+es_scaling <- 100 / apply(
+  rij_sub,
+  MARGIN = 1,
+  FUN = max,
+  na.rm = TRUE
+)
+
+## apply scaling factors
+for (ii in seq_along(es_scaling)) {
+  rij_sub[ii, ] <- rij_sub[ii, ] * es_scaling[ii]
 }
+rij_sub <- drop0(rij_sub) # ensure sparsity
+
 rij[es_features, ] <- rij_sub
+
+
+
 
 # number of non-zero planning units
 n_pu <- nrow(rij)
@@ -86,12 +98,18 @@ features$total <- rowSums(rij) %>%
   enframe(value = "total") %>% pull(total)
   # inner_join(features, ., by = "name")
 # set biodiversity targets
-max_total <- resolution^2
-features <- features %>% 
-  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>% 
-  # set target based on aoh
+max_total <- resolution^2 # thr s
+features <- 
+  features %>%
+  # initialize column with total amount of aoh per species
+  # these totals are summed percentage values (0 = 0%, 100 = 100%) 
+  mutate(aoh = ifelse(type != "es", total, NA_real_)) %>%
+  # convert aoh totals to m^2
+  mutate(aoh = (aoh / 100) * ((resolution * 1000) ^2)) %>%
+  # convert from m^2 to km^2
+  mutate(aoh = as.numeric(set_units(set_units(aoh, m^2), km^2))) %>%
+  # calculate target as a proportion (0 = 0%, 1 = 100%)
   mutate(prop0 = calculate_targets(aoh))
-
 
 # prioritize ---- 
 
